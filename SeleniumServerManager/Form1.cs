@@ -39,13 +39,12 @@ namespace SeleniumServerManager
                 UseShellExecute = false,
                 Verb = "runas",
                 RedirectStandardOutput = true,
-                Arguments = "tasklist /fi "+'\u0022'+"ImageName eq cmd.exe "+ '\u0022'
+                Arguments = "tasklist /fi "+'\u0022'+"ImageName eq cmd.exe "+ '\u0022' + "/fi"+'\u0022'+"Windowtitle eq Selenium*"+'\u0022' + "/fo list /v"
                 //Arguments = "tasklist /fi \"\"Windowtitle eq Selenium* \"\" /fi \"\"ImageName eq cmd.exe\"\" /fo list /v"
             };
             proc.StartInfo = finderInfo;
 
             proc.Start();
-            proc.WaitForExit();
 
             
             //string output = proc.StandardOutput.ReadToEnd();
