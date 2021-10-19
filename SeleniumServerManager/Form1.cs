@@ -44,7 +44,9 @@ namespace SeleniumServerManager
             //Call every 5 minutes
             var timer = new System.Threading.Timer((e) =>
             {
+                currentVersion = CurrentChromeVersion();
                 CheckLatestChromeDriver();
+                
                 UpdateLabels();
                 CheckProcesses();
                 Console.WriteLine("test");
@@ -190,11 +192,12 @@ namespace SeleniumServerManager
         public async void CheckLatestChromeDriver() {
             Console.WriteLine("Checking latest chrome version");
             latestVersion = await client.GetStringAsync("https://chromedriver.storage.googleapis.com/LATEST_RELEASE");
+            Console.WriteLine(latestVersion);
             
         }
-        public void UpdateLabels()
+        public async void UpdateLabels()
         {
-            //latestChromeLabel.Text = "Latest Chrome Driver Version: " + latestVersion;
+            //currentVersionLabel.Text = "Latest Chrome Driver Version: " + currentVersion;
         }
 
 
@@ -217,24 +220,34 @@ namespace SeleniumServerManager
         }
 
         public string CurrentChromeVersion() {
-
-            string output = CMDCommand("powershell -command" + +,false,false);
+            string appPath = Directory.GetCurrentDirectory() + @"\";
+            Process chromeChecker = new Process();
+            ProcessStartInfo chromeCheckerInfo = new ProcessStartInfo
+            {
+                CreateNoWindow = false,
+                FileName = "chromeVersion.bat",
+                UseShellExecute = false,
+                Verb = "runas",
+                //Arguments = "java -jar selenium-server-standalone-3.141.59.jar -role hub"
+            };
+            chromeCheckerInfo.RedirectStandardOutput = true;
+            chromeCheckerInfo.WorkingDirectory = appPath;
+            chromeChecker.StartInfo = chromeCheckerInfo;
+            chromeChecker.Start();
+            string output = chromeChecker.StandardOutput.ReadToEnd();
 
             Regex r = new Regex(chromeversionRegex);
             Match m = r.Match(output);
             int matchCount = 0;
             if (m.Success)
             {
-                
-                //Console.WriteLine("Match" + (++matchCount));
-                for (int i = 1; i <= 2; i++)
-                {
-                    Group g = m.Groups[i];
-                    //Console.WriteLine("Group"+i+"="+g);
-                }
+                Console.WriteLine(m.Value);
+
                 return m.Value;
             }
-            return null;
+            else {
+                return null;
+             }
         }
     }
 }
