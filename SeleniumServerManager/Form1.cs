@@ -12,7 +12,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Net;
 using System.Net.Http;
-
+using System.Text.RegularExpressions;
 
 namespace SeleniumServerManager
 {
@@ -20,43 +20,55 @@ namespace SeleniumServerManager
     {
         public bool servicesRunning = false;
         public Process seleniumHub,seleniumNode;
-        private List<Process> seleniumProcesses;
+        private List<Process> seleniumProcesses = new List<Process>();
+
+        public FileStream ioStreamer;
+        public string path;
+        public Form1 parent;
+        private string responseString;
+        private static readonly HttpClient client = new HttpClient();
+
+        public string chromeversionRegex = @"([0-9]+[.])\S+";
+        public string latestVersion, currentVersion;
 
         public Form1()
         {
             InitializeComponent();
-
-            //Getting the processes cmd.exe with Selenium in their names:
-            //tasklist /fi "Windowtitle eq Selenium*" /fi "ImageName eq cmd.exe" /fo list /v
-
-            Process proc = new Process();
-
-            ProcessStartInfo finderInfo = new ProcessStartInfo
-            {
-                WorkingDirectory = @"C:\",
-                CreateNoWindow = false,
-                FileName = "cmd.exe",
-                UseShellExecute = false,
-                Verb = "runas",
-                RedirectStandardOutput = true,
-                Arguments = "tasklist /fi "+'\u0022'+"ImageName eq cmd.exe "+ '\u0022' + "/fi"+'\u0022'+"Windowtitle eq Selenium*"+'\u0022' + "/fo list /v"
-                //Arguments = "tasklist /fi \"\"Windowtitle eq Selenium* \"\" /fi \"\"ImageName eq cmd.exe\"\" /fo list /v"
-            };
-            proc.StartInfo = finderInfo;
-
-            proc.Start();
+            string directory = Directory.GetCurrentDirectory();
+            path = directory + "\\settings.xml";
 
             
-            //string output = proc.StandardOutput.ReadToEnd();
 
-            //Console.WriteLine(output);
-            proc.Close();
-            //proc.WaitForExit();
+            var startTimeSpan = TimeSpan.Zero;
+            var periodTimeSpan = TimeSpan.FromMinutes(5);
+            //Call every 5 minutes
+            var timer = new System.Threading.Timer((e) =>
+            {
+                CheckLatestChromeDriver();
+                UpdateLabels();
+                CheckProcesses();
+                Console.WriteLine("test");
 
+                if (seleniumProcesses.Count == 0)
+                {
+                    
+                    StartProcesses();
+                }
+
+            }, null, startTimeSpan, periodTimeSpan);
+        }
+
+        private void startButton_Click(object sender, EventArgs e)
+        {
+            StartProcesses();
+        }
+
+        public void StartProcesses() {
             try
             {
-
                 string appPath = Directory.GetCurrentDirectory() + @"\";
+
+
                 seleniumHub = new Process();
                 Console.WriteLine(appPath);
                 ProcessStartInfo seleniumHubInfo = new ProcessStartInfo
@@ -87,37 +99,142 @@ namespace SeleniumServerManager
                 seleniumNode.StartInfo = seleniumNodeInfo;
                 seleniumNode.Start();
 
-            }catch (Exception e)
+            }
+            catch (Exception e)
             {
                 MessageBox.Show(e.Message);
             }
+        }
+
+        public void stopProcesses()
+        {
+
+            foreach (Process p in seleniumProcesses)
+            {
+                
+                Console.WriteLine("Killing process: " + p.Id);
+                p.CloseMainWindow();
+                p.Close();
+                seleniumProcesses.Remove(p);
+            }
+        }
+
+        private void driverUpdateButton_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void stopButton_Click(object sender, EventArgs e)
+        {
+            CheckProcesses();
+            if (seleniumProcesses.Count >= 1)
+            {
+                Console.WriteLine("Killing all Selenium related processes");
+                stopProcesses();
+            }
+        }
+
+        public void CheckProcesses() {
 
             Process[] localProcesses = Process.GetProcesses();
 
             Console.WriteLine(localProcesses.Length);
-            foreach (var p in localProcesses)
+            foreach (Process p in localProcesses)
             {
                 if (p.MainWindowTitle != "")
                 {
-                    Console.WriteLine(p.MainWindowTitle);
-                    if (p.MainWindowTitle == "SeleniumNode" || p.MainWindowTitle == "SeleniumHub")
+                    //Console.WriteLine(p.MainWindowTitle + " | " + p.Id);
+                    if (p.MainWindowTitle == "Administrator:  SeleniumNode" || p.MainWindowTitle == "Administrator:  SeleniumHub")
                     {
+
                         seleniumProcesses.Add(p);
-                        Console.WriteLine(p.MainWindowTitle);
-                        Console.WriteLine(seleniumProcesses.Count);
+                        Console.WriteLine(p.MainWindowTitle + " | " + p.Id);
+
                     }
                 }
             }
+            Console.WriteLine("Found Selenium Processes: " + seleniumProcesses.Count);
+            
         }
 
-        private void button1_Click(object sender, EventArgs e)
+        public string CMDCommand(string command, bool noWindow, bool shellexe)
         {
+            
+            Process process = new Process();
+            ProcessStartInfo startInfo = new ProcessStartInfo
+            {
+                CreateNoWindow = noWindow,
+                FileName = "cmd.exe",
+                UseShellExecute = shellexe,
+                Verb = "runas",
+                Arguments = command
+            };
 
+            if (shellexe == false)
+            {
+                startInfo.RedirectStandardOutput = true;
+                startInfo.RedirectStandardInput = true;
+                process.StartInfo = startInfo;
+                process.Start();
+                string output = process.StandardOutput.ReadToEnd();
+                process.WaitForExit();
+                process.Close();
+                return output;
+            }
+            else {
+                process.StartInfo = startInfo;
+                process.Start();
+                return null;
+            }
+        }
+        public async void CheckLatestChromeDriver() {
+            Console.WriteLine("Checking latest chrome version");
+            latestVersion = await client.GetStringAsync("https://chromedriver.storage.googleapis.com/LATEST_RELEASE");
+            
+        }
+        public void UpdateLabels()
+        {
+            //latestChromeLabel.Text = "Latest Chrome Driver Version: " + latestVersion;
         }
 
-        private void startButton_Click(object sender, EventArgs e)
-        {
 
+        public async void UpdateChromeDriver(string version) {
+            //responseString = await client.GetStringAsync("https://chromedriver.storage.googleapis.com/LATEST_RELEASE");
+            stopProcesses();
+            using (var client = new WebClient())
+            {
+                client.DownloadFile("https://chromedriver.storage.googleapis.com/" + version + "/chromedriver_win32.zip", "chromedriver.zip");
+            }
+            using (ZipArchive archive = ZipFile.Open(Directory.GetCurrentDirectory() + "/chromedriver.zip", ZipArchiveMode.Update))
+            {
+                Console.WriteLine(archive.GetEntry("chromedriver.exe"));
+                ZipArchiveEntry file = archive.GetEntry("chromedriver.exe");
+                ZipFileExtensions.ExtractToFile(file, "chromedriver.exe", true);
+            }
+
+            currentVersionLabel.Text = responseString;
+            MessageBox.Show("Chromedriver was updated to version: " + responseString);
+        }
+
+        public string CurrentChromeVersion() {
+
+            string output = CMDCommand("powershell -command" + +,false,false);
+
+            Regex r = new Regex(chromeversionRegex);
+            Match m = r.Match(output);
+            int matchCount = 0;
+            if (m.Success)
+            {
+                
+                //Console.WriteLine("Match" + (++matchCount));
+                for (int i = 1; i <= 2; i++)
+                {
+                    Group g = m.Groups[i];
+                    //Console.WriteLine("Group"+i+"="+g);
+                }
+                return m.Value;
+            }
+            return null;
         }
     }
 }

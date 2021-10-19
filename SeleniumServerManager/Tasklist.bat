@@ -1,0 +1,1 @@
+tasklist /fi "ImageName eq cmd.exe" /fi "Windowtitle eq Selenium*" /fo list /v

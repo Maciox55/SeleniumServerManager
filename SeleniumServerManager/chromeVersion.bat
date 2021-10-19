@@ -1,0 +1,1 @@
+powershell -command "(Get-Item 'C:\Program Files\Google\Chrome\Application\chrome.exe').VersionInfo"
