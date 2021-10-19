@@ -148,6 +148,7 @@ namespace SeleniumServerManager
 
         public void CheckProcesses() {
 
+            //TODO: Check for duplicates in seleniumProcesses list before inserting process to list.
             Process[] localProcesses = Process.GetProcesses();
 
             Console.WriteLine(localProcesses.Length);
