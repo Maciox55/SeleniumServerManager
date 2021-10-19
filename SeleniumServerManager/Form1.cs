@@ -44,7 +44,7 @@ namespace SeleniumServerManager
             //Call every 5 minutes
             var timer = new System.Threading.Timer((e) =>
             {
-                currentVersion = CurrentChromeVersion();
+                this.setLatest (CurrentChromeVersion());
                 CheckLatestChromeDriver();
                 
                 UpdateLabels();
@@ -55,6 +55,7 @@ namespace SeleniumServerManager
                 {
                     
                     StartProcesses();
+                    CheckProcesses();
                 }
 
             }, null, startTimeSpan, periodTimeSpan);
@@ -64,6 +65,12 @@ namespace SeleniumServerManager
         {
             StartProcesses();
         }
+        public string getLatest() {
+            return this.latestVersion;
+        }
+        public void setLatest(string v) {
+            this.latestVersion = v;
+        }
 
         public void StartProcesses() {
             try
@@ -72,7 +79,7 @@ namespace SeleniumServerManager
 
 
                 seleniumHub = new Process();
-                Console.WriteLine(appPath);
+                //Console.WriteLine(appPath);
                 ProcessStartInfo seleniumHubInfo = new ProcessStartInfo
                 {
 
@@ -87,7 +94,7 @@ namespace SeleniumServerManager
                 seleniumHub.Start();
 
                 seleniumNode = new Process();
-                Console.WriteLine(appPath);
+                //Console.WriteLine(appPath);
                 ProcessStartInfo seleniumNodeInfo = new ProcessStartInfo
                 {
 
@@ -110,15 +117,18 @@ namespace SeleniumServerManager
 
         public void stopProcesses()
         {
-
-            foreach (Process p in seleniumProcesses)
+            if (seleniumProcesses.Count() >= 1)
             {
-                
-                Console.WriteLine("Killing process: " + p.Id);
-                p.CloseMainWindow();
-                p.Close();
-                seleniumProcesses.Remove(p);
+                foreach (Process p in seleniumProcesses.ToList())
+                {
+
+                    Console.WriteLine("Killing process: " + p.Id);
+                    p.CloseMainWindow();
+                    p.Close();
+                    seleniumProcesses.Remove(p);
+                }
             }
+           
         }
 
         private void driverUpdateButton_Click(object sender, EventArgs e)
@@ -128,7 +138,7 @@ namespace SeleniumServerManager
 
         private void stopButton_Click(object sender, EventArgs e)
         {
-            CheckProcesses();
+           //CheckProcesses();
             if (seleniumProcesses.Count >= 1)
             {
                 Console.WriteLine("Killing all Selenium related processes");
@@ -146,12 +156,17 @@ namespace SeleniumServerManager
                 if (p.MainWindowTitle != "")
                 {
                     //Console.WriteLine(p.MainWindowTitle + " | " + p.Id);
-                    if (p.MainWindowTitle == "Administrator:  SeleniumNode" || p.MainWindowTitle == "Administrator:  SeleniumHub")
+                    if (p.MainWindowTitle == "Administrator:  SeleniumNode")
                     {
 
                         seleniumProcesses.Add(p);
+                        //seleniumNodeProcessLabel.Text = "Selenium Node is running! | Process ID:" + p.Id;
                         Console.WriteLine(p.MainWindowTitle + " | " + p.Id);
-
+                    }
+                    if (p.MainWindowTitle == "Administrator:  SeleniumHub") {
+                        seleniumProcesses.Add(p);
+                        //seleniumServerProcessLabel.Text = "Selenium Hub is running! | Process ID:" + p.Id;
+                        Console.WriteLine(p.MainWindowTitle + " | " + p.Id);
                     }
                 }
             }
@@ -235,6 +250,9 @@ namespace SeleniumServerManager
             chromeChecker.StartInfo = chromeCheckerInfo;
             chromeChecker.Start();
             string output = chromeChecker.StandardOutput.ReadToEnd();
+
+            chromeChecker.WaitForExit();
+            chromeChecker.Close();
 
             Regex r = new Regex(chromeversionRegex);
             Match m = r.Match(output);
