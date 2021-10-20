@@ -149,8 +149,6 @@ namespace SeleniumServerManager
         }
 
         public void CheckProcesses() {
-
-            //TODO: Check for duplicates in seleniumProcesses list before inserting process to list.
             Process[] localProcesses = Process.GetProcesses();
 
             Console.WriteLine(localProcesses.Length);
@@ -159,14 +157,15 @@ namespace SeleniumServerManager
                 if (p.MainWindowTitle != "")
                 {
                     //Console.WriteLine(p.MainWindowTitle + " | " + p.Id);
-                    if (p.MainWindowTitle == "Administrator:  SeleniumNode")
+
+                    if (p.MainWindowTitle == "Administrator:  SeleniumNode" && !seleniumProcesses.Exists(x=> x.MainWindowTitle == "Administrator:  SeleniumNode"))
                     {
 
                         seleniumProcesses.Add(p);
                         //seleniumNodeProcessLabel.Text = "Selenium Node is running! | Process ID:" + p.Id;
                         Console.WriteLine(p.MainWindowTitle + " | " + p.Id);
                     }
-                    if (p.MainWindowTitle == "Administrator:  SeleniumHub") {
+                    if (p.MainWindowTitle == "Administrator:  SeleniumHub" && !seleniumProcesses.Exists(x => x.MainWindowTitle == "Administrator:  SeleniumHub")) {
                         seleniumProcesses.Add(p);
                         //seleniumServerProcessLabel.Text = "Selenium Hub is running! | Process ID:" + p.Id;
                         Console.WriteLine(p.MainWindowTitle + " | " + p.Id);
@@ -174,7 +173,6 @@ namespace SeleniumServerManager
                 }
             }
             Console.WriteLine("Found Selenium Processes: " + seleniumProcesses.Count);
-            
         }
         
 
