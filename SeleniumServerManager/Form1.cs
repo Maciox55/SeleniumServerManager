@@ -37,23 +37,25 @@ namespace SeleniumServerManager
             string directory = Directory.GetCurrentDirectory();
             path = directory + "\\settings.xml";
 
-            
-
             var startTimeSpan = TimeSpan.Zero;
             var periodTimeSpan = TimeSpan.FromMinutes(5);
             //Call every 5 minutes
             var timer = new System.Threading.Timer((e) =>
             {
-                this.setLatest (CurrentChromeVersion());
-                CheckLatestChromeDriver();
+                Label label = new Label();
+                label.Location = new Point(100, 100);
                 
-                UpdateLabels();
+                label.Text = "test";
+                CheckLatestChromeDriver();
+
+                currentVersion = CurrentChromeVersion();
+                
                 CheckProcesses();
-                Console.WriteLine("test");
+
+                UpdateLabels();
 
                 if (seleniumProcesses.Count == 0)
                 {
-                    
                     StartProcesses();
                     CheckProcesses();
                 }
@@ -133,7 +135,7 @@ namespace SeleniumServerManager
 
         private void driverUpdateButton_Click(object sender, EventArgs e)
         {
-
+           
         }
 
         private void stopButton_Click(object sender, EventArgs e)
@@ -174,6 +176,7 @@ namespace SeleniumServerManager
             Console.WriteLine("Found Selenium Processes: " + seleniumProcesses.Count);
             
         }
+        
 
         public string CMDCommand(string command, bool noWindow, bool shellexe)
         {
@@ -208,14 +211,38 @@ namespace SeleniumServerManager
         public async void CheckLatestChromeDriver() {
             Console.WriteLine("Checking latest chrome version");
             latestVersion = await client.GetStringAsync("https://chromedriver.storage.googleapis.com/LATEST_RELEASE");
-            Console.WriteLine(latestVersion);
-            
+            Console.WriteLine("Latest Chrome Driver: " + latestVersion);
         }
         public async void UpdateLabels()
         {
-            //currentVersionLabel.Text = "Latest Chrome Driver Version: " + currentVersion;
+            MethodInvoker updateLatest = delegate
+            { latestChromeLabel.Text ="Latest Chrome Version: " + latestVersion;
+            
+            };
+            latestChromeLabel.BeginInvoke(updateLatest);
+
+            MethodInvoker updateCurrent = delegate
+            {
+                currentVersionLabel.Text = "Current Chrome Version: " + currentVersion;
+
+            };
+            currentVersionLabel.BeginInvoke(updateCurrent);
+
+            MethodInvoker updateProcesses = delegate
+            {
+                seleniumProcessesLabel.Text = "Selenium Processes found: " + seleniumProcesses.Count;
+
+            };
+            seleniumProcessesLabel.BeginInvoke(updateProcesses);
+
+
+
         }
 
+        private void button1_Click(object sender, EventArgs e)
+        {
+            UpdateLabels();
+        }
 
         public async void UpdateChromeDriver(string version) {
             //responseString = await client.GetStringAsync("https://chromedriver.storage.googleapis.com/LATEST_RELEASE");
@@ -243,8 +270,7 @@ namespace SeleniumServerManager
                 CreateNoWindow = false,
                 FileName = "chromeVersion.bat",
                 UseShellExecute = false,
-                Verb = "runas",
-                //Arguments = "java -jar selenium-server-standalone-3.141.59.jar -role hub"
+                Verb = "runas"
             };
             chromeCheckerInfo.RedirectStandardOutput = true;
             chromeCheckerInfo.WorkingDirectory = appPath;
@@ -260,7 +286,7 @@ namespace SeleniumServerManager
             int matchCount = 0;
             if (m.Success)
             {
-                Console.WriteLine(m.Value);
+                Console.WriteLine("Current Chrome Version: "+m.Value);
 
                 return m.Value;
             }
