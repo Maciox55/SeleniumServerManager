@@ -52,13 +52,12 @@ namespace SeleniumServerManager
                 
                 CheckProcesses();
 
-                UpdateLabels();
-
                 if (seleniumProcesses.Count == 0)
                 {
                     StartProcesses();
                     CheckProcesses();
                 }
+                UpdateLabels();
 
             }, null, startTimeSpan, periodTimeSpan);
         }
@@ -135,7 +134,7 @@ namespace SeleniumServerManager
 
         private void driverUpdateButton_Click(object sender, EventArgs e)
         {
-           
+            UpdateToLatestChromeDriver();
         }
 
         private void stopButton_Click(object sender, EventArgs e)
@@ -213,9 +212,14 @@ namespace SeleniumServerManager
         }
         public async void UpdateLabels()
         {
-            MethodInvoker updateLatest = delegate
-            { latestChromeLabel.Text ="Latest Chrome Version: " + latestVersion;
+            CheckLatestChromeDriver();
+            CurrentChromeVersion();
+            CheckProcesses();
             
+
+            MethodInvoker updateLatest = delegate
+            { 
+                latestChromeLabel.Text ="Latest Chrome Version: " + latestVersion;
             };
             latestChromeLabel.BeginInvoke(updateLatest);
 
@@ -232,9 +236,6 @@ namespace SeleniumServerManager
 
             };
             seleniumProcessesLabel.BeginInvoke(updateProcesses);
-
-
-
         }
 
         private void button1_Click(object sender, EventArgs e)
@@ -242,22 +243,74 @@ namespace SeleniumServerManager
             UpdateLabels();
         }
 
+        public async void UpdateToLatestChromeDriver()
+        {
+            try
+            {
+                var latest = await client.GetStringAsync("https://chromedriver.storage.googleapis.com/LATEST_RELEASE");
+                stopProcesses();
+                using (var client = new WebClient())
+                {
+                    client.DownloadFile("https://chromedriver.storage.googleapis.com/" + latest + "/chromedriver_win32.zip", "chromedriver.zip");
+                }
+                using (ZipArchive archive = ZipFile.Open(Directory.GetCurrentDirectory() + "/chromedriver.zip", ZipArchiveMode.Update))
+                {
+                    Console.WriteLine(archive.GetEntry("chromedriver.exe"));
+                    ZipArchiveEntry file = archive.GetEntry("chromedriver.exe");
+                    ZipFileExtensions.ExtractToFile(file, "chromedriver.exe", true);
+                }
+                latestVersion = latest;
+                UpdateLabels();
+                StartProcesses();
+                MessageBox.Show("Chromedriver was updated to version: " + latest);
+            }
+            catch (Exception e)
+            {
+                MessageBox.Show("Encountered issue updating to latest version.\n Exception Details:" + e.Message);
+
+            
+            }
+            
+        }
+
+        private void linkLabel1_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            Process.Start("https://github.com/Maciox55/SeleniumServerManager");
+        }
+
+        private void downloadCurrentDriverBtn_Click(object sender, EventArgs e)
+        {
+            if (currentVersion != null)
+            {
+                UpdateChromeDriver(currentVersion);
+            }
+        }
+
         public async void UpdateChromeDriver(string version) {
             //responseString = await client.GetStringAsync("https://chromedriver.storage.googleapis.com/LATEST_RELEASE");
-            stopProcesses();
-            using (var client = new WebClient())
-            {
-                client.DownloadFile("https://chromedriver.storage.googleapis.com/" + version + "/chromedriver_win32.zip", "chromedriver.zip");
-            }
-            using (ZipArchive archive = ZipFile.Open(Directory.GetCurrentDirectory() + "/chromedriver.zip", ZipArchiveMode.Update))
-            {
-                Console.WriteLine(archive.GetEntry("chromedriver.exe"));
-                ZipArchiveEntry file = archive.GetEntry("chromedriver.exe");
-                ZipFileExtensions.ExtractToFile(file, "chromedriver.exe", true);
-            }
 
-            currentVersionLabel.Text = responseString;
-            MessageBox.Show("Chromedriver was updated to version: " + responseString);
+            try {
+                stopProcesses();
+                using (var client = new WebClient())
+                {
+                    client.DownloadFile("https://chromedriver.storage.googleapis.com/" + version + "/chromedriver_win32.zip", "chromedriver.zip");
+                }
+                using (ZipArchive archive = ZipFile.Open(Directory.GetCurrentDirectory() + "/chromedriver.zip", ZipArchiveMode.Update))
+                {
+                    Console.WriteLine(archive.GetEntry("chromedriver.exe"));
+                    ZipArchiveEntry file = archive.GetEntry("chromedriver.exe");
+                    ZipFileExtensions.ExtractToFile(file, "chromedriver.exe", true);
+                }
+
+                UpdateLabels();
+                StartProcesses();
+                MessageBox.Show("Chromedriver was updated to version: " + responseString);
+            }
+            catch (Exception e)
+            {
+                MessageBox.Show("Encountered issue updating to "+version+" version.\n Exception Details:" + e.Message);
+            }
+            
         }
 
         public string CurrentChromeVersion() {
