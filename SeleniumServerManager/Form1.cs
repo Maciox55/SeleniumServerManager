@@ -281,6 +281,8 @@ namespace SeleniumServerManager
 
         private void downloadCurrentDriverBtn_Click(object sender, EventArgs e)
         {
+            UpdateLabels();
+            currentVersion = CurrentChromeVersion();
             if (currentVersion != null)
             {
                 UpdateChromeDriver(currentVersion);
@@ -289,13 +291,13 @@ namespace SeleniumServerManager
 
         public async Task<string> ConvertChromeToWebDriver(string version)
         {
-            string regexs = @"\w[0-9]";
+            string regexs = @"^([^.]+)";
             Regex regex = new Regex(regexs);
             Match m = regex.Match(currentVersion);
-            if (m.Success)
+            if (m.Success) 
             {
                 responseString = await client.GetStringAsync("https://chromedriver.storage.googleapis.com/LATEST_RELEASE" + "_" + m.Groups[0]);
-                Console.WriteLine("Driver for major chrome version"+m.Groups[0]+" is: "+responseString);
+                Console.WriteLine("Driver for major chrome version "+m.Groups[0]+" is: "+responseString);
             }
             return responseString;
         }
@@ -304,9 +306,6 @@ namespace SeleniumServerManager
 
 
            // responseString = await client.GetStringAsync("https://chromedriver.storage.googleapis.com/LATEST_RELEASE");
-
-            https://chromedriver.storage.googleapis.com/index.html?path=72.0.3626.69/
-
             try {
                 stopProcesses();
                 string v = await ConvertChromeToWebDriver(currentVersion);
@@ -322,8 +321,6 @@ namespace SeleniumServerManager
                     ZipArchiveEntry file = archive.GetEntry("chromedriver.exe");
                     ZipFileExtensions.ExtractToFile(file, "chromedriver.exe", true);
                 }
-
-                
                 StartProcesses();
                 
                 MessageBox.Show("Chromedriver was updated to version: " + responseString);
