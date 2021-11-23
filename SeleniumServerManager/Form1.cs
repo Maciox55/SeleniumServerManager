@@ -39,6 +39,7 @@ namespace SeleniumServerManager
 
             var startTimeSpan = TimeSpan.Zero;
             var periodTimeSpan = TimeSpan.FromMinutes(5);
+            
             //Call every 5 minutes
             var timer = new System.Threading.Timer((e) =>
             {
@@ -46,10 +47,9 @@ namespace SeleniumServerManager
                 label.Location = new Point(100, 100);
                 
                 label.Text = "test";
-                CheckLatestChromeDriver();
+                setLatest(CheckLatestChromeDriver().Result);
+                Console.WriteLine("Latest Chrome Version: " + getLatest());
 
-                currentVersion = CurrentChromeVersion();
-                
                 CheckProcesses();
 
                 if (seleniumProcesses.Count == 0)
@@ -60,11 +60,25 @@ namespace SeleniumServerManager
                 UpdateLabels();
 
             }, null, startTimeSpan, periodTimeSpan);
+
+            //StartProcesses();
+            CheckProcesses();
+            if (seleniumProcesses.Count == 0)
+            {
+                StartProcesses();
+                CheckProcesses();
+            }
+            UpdateLabels();
+
         }
 
         private void startButton_Click(object sender, EventArgs e)
         {
-            StartProcesses();
+            if (seleniumProcesses.Count < 1)
+            {
+                StartProcesses();
+                UpdateLabels();
+            }
         }
         public string getLatest() {
             return this.latestVersion;
@@ -78,12 +92,10 @@ namespace SeleniumServerManager
             {
                 string appPath = Directory.GetCurrentDirectory() + @"\";
 
-
                 seleniumHub = new Process();
                 //Console.WriteLine(appPath);
                 ProcessStartInfo seleniumHubInfo = new ProcessStartInfo
                 {
-
                     CreateNoWindow = false,
                     FileName = "Server_Hub_1.bat",
                     UseShellExecute = false,
@@ -98,7 +110,6 @@ namespace SeleniumServerManager
                 //Console.WriteLine(appPath);
                 ProcessStartInfo seleniumNodeInfo = new ProcessStartInfo
                 {
-
                     CreateNoWindow = false,
                     FileName = "Server_Node_2.bat",
                     UseShellExecute = false,
@@ -109,6 +120,7 @@ namespace SeleniumServerManager
                 seleniumNode.StartInfo = seleniumNodeInfo;
                 seleniumNode.Start();
 
+               
             }
             catch (Exception e)
             {
@@ -122,14 +134,13 @@ namespace SeleniumServerManager
             {
                 foreach (Process p in seleniumProcesses.ToList())
                 {
-
                     Console.WriteLine("Killing process: " + p.Id);
                     p.CloseMainWindow();
                     p.Close();
                     seleniumProcesses.Remove(p);
                 }
             }
-           
+            UpdateLabels();
         }
 
         private void driverUpdateButton_Click(object sender, EventArgs e)
@@ -159,7 +170,6 @@ namespace SeleniumServerManager
 
                     if (p.MainWindowTitle == "Administrator:  SeleniumNode" && !seleniumProcesses.Exists(x=> x.MainWindowTitle == "Administrator:  SeleniumNode"))
                     {
-
                         seleniumProcesses.Add(p);
                         //seleniumNodeProcessLabel.Text = "Selenium Node is running! | Process ID:" + p.Id;
                         Console.WriteLine(p.MainWindowTitle + " | " + p.Id);
@@ -173,11 +183,8 @@ namespace SeleniumServerManager
             }
             Console.WriteLine("Found Selenium Processes: " + seleniumProcesses.Count);
         }
-        
-
         public string CMDCommand(string command, bool noWindow, bool shellexe)
-        {
-            
+        {   
             Process process = new Process();
             ProcessStartInfo startInfo = new ProcessStartInfo
             {
@@ -205,44 +212,41 @@ namespace SeleniumServerManager
                 return null;
             }
         }
-        public async void CheckLatestChromeDriver() {
-            Console.WriteLine("Checking latest chrome version");
-            latestVersion = await client.GetStringAsync("https://chromedriver.storage.googleapis.com/LATEST_RELEASE");
-            Console.WriteLine("Latest Chrome Driver: " + latestVersion);
+        async Task<string> CheckLatestChromeDriver() {
+            Console.WriteLine("Checking latest chrome version...");
+            String latest = await client.GetStringAsync("https://chromedriver.storage.googleapis.com/LATEST_RELEASE");
+            Console.WriteLine("Latest Chrome Driver: " + latest);
+            return latest;
         }
         public async void UpdateLabels()
         {
-            CheckLatestChromeDriver();
+            string s = await CheckLatestChromeDriver();
+            setLatest(s);
             CurrentChromeVersion();
             CheckProcesses();
-            
 
             MethodInvoker updateLatest = delegate
             { 
-                latestChromeLabel.Text ="Latest Chrome Version: " + latestVersion;
+                latestChromeLabel.Text ="Latest Chrome Version: " + getLatest();
             };
             latestChromeLabel.BeginInvoke(updateLatest);
 
             MethodInvoker updateCurrent = delegate
             {
-                currentVersionLabel.Text = "Current Chrome Version: " + currentVersion;
-
+                currentVersionLabel.Text = "Current Chrome Version: " + CurrentChromeVersion();
             };
             currentVersionLabel.BeginInvoke(updateCurrent);
 
             MethodInvoker updateProcesses = delegate
             {
                 seleniumProcessesLabel.Text = "Selenium Processes found: " + seleniumProcesses.Count;
-
             };
             seleniumProcessesLabel.BeginInvoke(updateProcesses);
         }
-
         private void button1_Click(object sender, EventArgs e)
         {
             UpdateLabels();
         }
-
         public async void UpdateToLatestChromeDriver()
         {
             try
@@ -267,10 +271,7 @@ namespace SeleniumServerManager
             catch (Exception e)
             {
                 MessageBox.Show("Encountered issue updating to latest version.\n Exception Details:" + e.Message);
-
-            
             }
-            
         }
 
         private void linkLabel1_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
@@ -286,14 +287,34 @@ namespace SeleniumServerManager
             }
         }
 
+        public async Task<string> ConvertChromeToWebDriver(string version)
+        {
+            string regexs = @"\w[0-9]";
+            Regex regex = new Regex(regexs);
+            Match m = regex.Match(currentVersion);
+            if (m.Success)
+            {
+                responseString = await client.GetStringAsync("https://chromedriver.storage.googleapis.com/LATEST_RELEASE" + "_" + m.Groups[0]);
+                Console.WriteLine("Driver for major chrome version"+m.Groups[0]+" is: "+responseString);
+            }
+            return responseString;
+        }
+
         public async void UpdateChromeDriver(string version) {
-            //responseString = await client.GetStringAsync("https://chromedriver.storage.googleapis.com/LATEST_RELEASE");
+
+
+           // responseString = await client.GetStringAsync("https://chromedriver.storage.googleapis.com/LATEST_RELEASE");
+
+            https://chromedriver.storage.googleapis.com/index.html?path=72.0.3626.69/
 
             try {
                 stopProcesses();
+                string v = await ConvertChromeToWebDriver(currentVersion);
+
                 using (var client = new WebClient())
                 {
-                    client.DownloadFile("https://chromedriver.storage.googleapis.com/" + version + "/chromedriver_win32.zip", "chromedriver.zip");
+                
+                     client.DownloadFile("https://chromedriver.storage.googleapis.com/"+v+"/chromedriver_win32.zip", "chromedriver.zip");
                 }
                 using (ZipArchive archive = ZipFile.Open(Directory.GetCurrentDirectory() + "/chromedriver.zip", ZipArchiveMode.Update))
                 {
@@ -302,15 +323,15 @@ namespace SeleniumServerManager
                     ZipFileExtensions.ExtractToFile(file, "chromedriver.exe", true);
                 }
 
-                UpdateLabels();
+                
                 StartProcesses();
+                
                 MessageBox.Show("Chromedriver was updated to version: " + responseString);
             }
             catch (Exception e)
             {
                 MessageBox.Show("Encountered issue updating to "+version+" version.\n Exception Details:" + e.Message);
             }
-            
         }
 
         public string CurrentChromeVersion() {
